@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 require("dotenv").config();
 
@@ -64,7 +64,7 @@ const run = async () => {
       const email = req.headers.email;
       if (email === decodedEmail) {
         const task = req.body;
-        console.log(user);
+        console.log(task);
         await tasksCollection.insertOne(task);
         res.send(task);
       } else {
@@ -72,30 +72,8 @@ const run = async () => {
       }
     });
 
-    //API to get All tasks of a user
-
-    app.get("/tasks", verifyJWT, async (req, res) => {
-      const decodedEmail = req.decoded.email;
-      const email = req.headers.email;
-      if (email === decodedEmail) {
-        const query = {};
-        const tasks = await tasksCollection.find(query).toArray();
-        res.send(tasks);
-      } else {
-        res.send("You are not authorized to get all tasks");
-      }
-    });
-
-    //API to get all task of all users
-
-    app.get("/alltasks", async (req, res) => {
-      const query = {};
-      const tasks = await tasksCollection.find(query).toArray();
-      res.send(tasks);
-    });
-
     //API to get tasks of a user by email
-    app.get("/tasks/:email", verifyJWT,  async (req, res) => {
+    app.get("/tasks/:email", verifyJWT, async (req, res) => {
       const decodedEmail = req.decoded.email;
       const email = req.headers.email;
       if (email === decodedEmail) {
@@ -103,13 +81,47 @@ const run = async () => {
         const query = { taskWriterEmail: email };
         const tasks = await tasksCollection.find(query).toArray();
         res.send(tasks);
-      }
-      else {
+      } else {
         res.send("You are not authorized to get tasks of this user");
       }
-    }
-    );
+    });
 
+    //API to Delete a tasks by user
+    app.delete("/task/:id", verifyJWT, async (req, res) => {
+      const decodedEmail = req.decoded.email;
+      const email = req.headers.email;
+      if (email === decodedEmail) {
+        const id = req.params.id;
+        const query = { _id: ObjectId(id) };
+        const tasks = await tasksCollection.deleteOne(query);
+        res.send(tasks);
+      } else {
+        res.send("You are not authorized to delete this task");
+      }
+    });
+
+    //API to update a task by user
+    app.put("/task/:id", verifyJWT, async (req, res) => {
+      const decodedEmail = req.decoded.email;
+      const email = req.headers.email;
+      if (email === decodedEmail) {
+        const id = req.params.id;
+        const task = req.body;
+
+        const filter = { _id: ObjectId(id) };
+        const option = { upsert: true };
+        const updateDoc = { $set: task };
+
+        const tasks = await tasksCollection.updateOne(
+          filter,
+          updateDoc,
+          option
+        );
+        res.send(tasks);
+      } else {
+        res.send("You are not authorized to update this task");
+      }
+    });
   } finally {
     // client.close();
   }
